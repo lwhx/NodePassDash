@@ -71,11 +71,15 @@ import {
   faTable,
   faSync,
   faKey,
+  faCog,
 } from "@fortawesome/free-solid-svg-icons";
 
 import AddEndpointModal from "./components/add-endpoint-modal";
 import RenameEndpointModal from "./components/rename-endpoint-modal";
 import EditApiKeyModal from "./components/edit-apikey-modal";
+import EditEndpointConfigModal, {
+  type EndpointConfigForm,
+} from "./components/edit-endpoint-config-modal";
 
 import { buildApiUrl, formatUrlWithPrivacy } from "@/lib/utils";
 import { copyToClipboard } from "@/lib/utils/clipboard";
@@ -104,6 +108,7 @@ interface EndpointWithRelations extends EndpointBase {
 interface FormattedEndpoint extends EndpointWithRelations {
   apiPath: string;
   apiKey: string;
+  hostname?: string;
   tunnelCount: number;
   activeInstances: number;
   createdAt: Date;
@@ -271,8 +276,19 @@ export default function EndpointsPage() {
     onOpen: onEditApiKeyOpen,
     onOpenChange: onEditApiKeyOpenChange,
   } = useDisclosure();
+  const {
+    isOpen: isEditConfigOpen,
+    onOpen: onEditConfigOpen,
+    onOpenChange: onEditConfigOpenChange,
+  } = useDisclosure();
   const [selectedEndpoint, setSelectedEndpoint] =
     useState<FormattedEndpoint | null>(null);
+  const [configForm, setConfigForm] = useState<EndpointConfigForm>({
+    name: "",
+    url: "",
+    apiKey: "",
+    hostname: "",
+  });
   // Next.js 路由
   const navigate = useNavigate();
   // 视图模式：card | table，初始化时从 localStorage 读取
@@ -364,6 +380,20 @@ export default function EndpointsPage() {
   // 格式化URL显示（处理脱敏逻辑）
   const formatUrl = (url: string, apiPath: string) => {
     return formatUrlWithPrivacy(url, apiPath, settings.isPrivacyMode);
+  };
+
+  const parseUrl = (fullUrl: string) => {
+    const urlRegex = /^(https?:\/\/[^\/]+)(\/.*)?$/;
+    const match = fullUrl.match(urlRegex);
+
+    if (match) {
+      const baseUrl = match[1];
+      const apiPath = match[2] || "/api";
+
+      return { baseUrl, apiPath };
+    }
+
+    return { baseUrl: fullUrl, apiPath: "/api" };
   };
 
   // 获取排序后的端点列表 - 仅当有排序条件时才排序
@@ -972,6 +1002,9 @@ export default function EndpointsPage() {
                   case "editApiKey":
                     handleEditApiKeyClick(endpoint);
                     break;
+                  case "editConfig":
+                    handleEditConfigClick(endpoint);
+                    break;
                   case "copy":
                     handleCopyConfig(endpoint);
                     break;
@@ -1010,6 +1043,14 @@ export default function EndpointsPage() {
                 startContent={<FontAwesomeIcon fixedWidth icon={faPen} />}
               >
                 {t("actions.rename")}
+              </DropdownItem>
+              <DropdownItem
+                key="editConfig"
+                className="text-primary"
+                color="primary"
+                startContent={<FontAwesomeIcon fixedWidth icon={faCog} />}
+              >
+                {t("details.actions.editConfig")}
               </DropdownItem>
               <DropdownItem
                 key="editApiKey"
@@ -1165,6 +1206,147 @@ export default function EndpointsPage() {
   const handleEditApiKeyClick = (endpoint: FormattedEndpoint) => {
     setSelectedEndpoint(endpoint);
     onEditApiKeyOpen();
+  };
+
+  const handleEditConfigClick = (endpoint: FormattedEndpoint) => {
+    setSelectedEndpoint(endpoint);
+    setConfigForm({
+      name: endpoint.name,
+      url: endpoint.url + endpoint.apiPath,
+      apiKey: "",
+      hostname: endpoint.hostname || "",
+    });
+    onEditConfigOpen();
+  };
+
+  const handleSubmitEditConfig = async () => {
+    if (!selectedEndpoint?.id) return;
+
+    if (!configForm.name.trim() || !configForm.url.trim()) {
+      addToast({
+        title: t("details.toasts.editConfigValidation"),
+        description: t("details.toasts.editConfigValidationDesc"),
+        color: "warning",
+      });
+
+      return;
+    }
+
+    const endpoint = selectedEndpoint;
+    const endpointId = endpoint.id;
+    const { baseUrl, apiPath } = parseUrl(configForm.url.trim());
+    const hasNameChange = configForm.name.trim() !== endpoint.name;
+    const hasUrlChange =
+      baseUrl !== endpoint.url || apiPath !== endpoint.apiPath;
+    const hasApiKeyChange = configForm.apiKey.trim() !== "";
+    const hasHostnameChange =
+      configForm.hostname.trim() !== (endpoint.hostname || "");
+
+    if (
+      !hasNameChange &&
+      !hasUrlChange &&
+      !hasApiKeyChange &&
+      !hasHostnameChange
+    ) {
+      addToast({
+        title: t("details.toasts.editConfigNoChange"),
+        description: t("details.toasts.editConfigNoChangeDesc"),
+        color: "warning",
+      });
+
+      return;
+    }
+
+    onEditConfigOpenChange();
+
+    addToast({
+      title: t("details.toasts.editConfigStartUpdate"),
+      description: t("details.toasts.editConfigStartUpdateDesc"),
+      color: "primary",
+    });
+
+    (async () => {
+      try {
+        if (hasUrlChange || hasApiKeyChange) {
+          addToast({
+            title: t("details.toasts.editConfigDisconnecting"),
+            description: t("details.toasts.editConfigDisconnectingDesc"),
+            color: "primary",
+          });
+          await handleDisconnect(endpointId);
+        }
+
+        const updateData: {
+          action: string;
+          apiKey?: string;
+          hostname: string;
+          id: number;
+          name: string;
+          url: string;
+        } = {
+          id: endpointId,
+          action: "updateConfig",
+          name: configForm.name.trim(),
+          url: configForm.url.trim(),
+          hostname: configForm.hostname.trim(),
+        };
+
+        if (hasApiKeyChange) {
+          updateData.apiKey = configForm.apiKey.trim();
+        }
+
+        addToast({
+          title: t("details.toasts.editConfigUpdating"),
+          description: t("details.toasts.editConfigUpdatingDesc"),
+          color: "primary",
+        });
+
+        const response = await fetch(buildApiUrl("/api/endpoints"), {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(updateData),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+
+          throw new Error(
+            errorData.error || t("details.toasts.editConfigFailed"),
+          );
+        }
+
+        addToast({
+          title: t("details.toasts.editConfigSuccess"),
+          description: t("details.toasts.editConfigSuccessDesc"),
+          color: "success",
+        });
+
+        await fetchEndpoints();
+
+        if (hasUrlChange || hasApiKeyChange) {
+          addToast({
+            title: t("details.toasts.editConfigReconnecting"),
+            description: t("details.toasts.editConfigReconnectingDesc"),
+            color: "primary",
+          });
+
+          safeSetTimeout(async () => {
+            await handleConnect(endpointId);
+          }, 1500);
+        }
+      } catch (error) {
+        addToast({
+          title: t("details.toasts.editConfigFailed"),
+          description:
+            error instanceof Error
+              ? error.message
+              : t("details.toasts.editConfigFailedDesc"),
+          color: "danger",
+        });
+      }
+    })();
   };
 
   // 打开添加隧道弹窗
@@ -1556,7 +1738,7 @@ export default function EndpointsPage() {
             <TableColumn key="apikey" className="min-w-[220px]">
               {t("table.columns.apiKey")}
             </TableColumn>
-            <TableColumn key="actions" className="w-52">
+            <TableColumn key="actions" className="min-w-[260px]">
               {t("table.columns.actions")}
             </TableColumn>
           </TableHeader>
@@ -1650,7 +1832,7 @@ export default function EndpointsPage() {
                             : ep.apiKey}
                         </span>
                       </TableCell>
-                      <TableCell className="w-52">
+                      <TableCell className="min-w-[260px]">
                         <div className="flex items-center gap-1 justify-start">
                           {/* 查看详情 */}
                           <Tooltip content={t("actions.viewDetails")}>
@@ -1664,6 +1846,18 @@ export default function EndpointsPage() {
                               }
                             >
                               <FontAwesomeIcon icon={faEye} />
+                            </Button>
+                          </Tooltip>
+                          {/* 修改配置 */}
+                          <Tooltip content={t("details.actions.editConfig")}>
+                            <Button
+                              isIconOnly
+                              color="primary"
+                              size="sm"
+                              variant="light"
+                              onPress={() => handleEditConfigClick(ep)}
+                            >
+                              <FontAwesomeIcon icon={faCog} />
                             </Button>
                           </Tooltip>
                           {/* 添加实例 */}
@@ -1803,6 +1997,15 @@ export default function EndpointsPage() {
         />
       )}
 
+      {/* 修改配置模态框 */}
+      <EditEndpointConfigModal
+        configForm={configForm}
+        isOpen={isEditConfigOpen}
+        setConfigForm={setConfigForm}
+        onOpenChange={onEditConfigOpenChange}
+        onSubmit={handleSubmitEditConfig}
+      />
+
       {/* 添加隧道弹窗 */}
       <Modal
         isOpen={isAddTunnelOpen}
@@ -1861,7 +2064,7 @@ export default function EndpointsPage() {
                     <p className="text-default-600">
                       {t("deleteModal.message")}{" "}
                       <span className="font-semibold text-foreground">
-                        "{deleteModalEndpoint.name}"
+                        &quot;{deleteModalEndpoint.name}&quot;
                       </span>{" "}
                       {t("deleteModal.messageEnd")}
                     </p>

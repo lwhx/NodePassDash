@@ -56,6 +56,10 @@ import { addToast } from "@heroui/toast";
 import QRCode from "qrcode";
 import { useTranslation } from "react-i18next";
 
+import EditEndpointConfigModal, {
+  type EndpointConfigForm,
+} from "../components/edit-endpoint-config-modal";
+
 import { buildApiUrl, formatUrlWithPrivacy } from "@/lib/utils";
 import { OSIcon } from "@/components/ui/os-icon";
 import { useSettings } from "@/components/providers/settings-provider";
@@ -198,7 +202,7 @@ export default function EndpointDetailPage() {
   // 表单状态
   const [tunnelUrl, setTunnelUrl] = useState("");
   const [tunnelName, setTunnelName] = useState("");
-  const [configForm, setConfigForm] = useState({
+  const [configForm, setConfigForm] = useState<EndpointConfigForm>({
     name: "", // 主控名称，留空表示不修改
     url: "", // 完整URL（包含API路径），留空表示不修改
     apiKey: "", // API密钥，留空表示不修改
@@ -1955,83 +1959,13 @@ export default function EndpointDetailPage() {
       </Modal>
 
       {/* 修改配置模态框 */}
-      <Modal
+      <EditEndpointConfigModal
+        configForm={configForm}
         isOpen={isEditConfigOpen}
-        placement="center"
-        size="lg"
+        setConfigForm={setConfigForm}
         onOpenChange={onEditConfigOpenChange}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader>{t("details.modals.editConfig.title")}</ModalHeader>
-              <ModalBody>
-                <div className="space-y-4">
-                  <p className="text-sm text-warning-600">
-                    {t("details.modals.editConfig.warning")}
-                  </p>
-
-                  <Input
-                    isRequired
-                    endContent={
-                      <span className="text-xs text-default-500">
-                        {configForm.name.length}/25
-                      </span>
-                    }
-                    label={t("details.modals.editConfig.nameLabel")}
-                    maxLength={25}
-                    placeholder={t("details.modals.editConfig.namePlaceholder")}
-                    value={configForm.name}
-                    onValueChange={(value) =>
-                      setConfigForm((prev) => ({ ...prev, name: value }))
-                    }
-                  />
-
-                  <Input
-                    isRequired
-                    label={t("details.modals.editConfig.urlLabel")}
-                    placeholder={t("details.modals.editConfig.urlPlaceholder")}
-                    type="url"
-                    value={configForm.url}
-                    onValueChange={(value) =>
-                      setConfigForm((prev) => ({ ...prev, url: value }))
-                    }
-                  />
-
-                  <Input
-                    description={t("details.modals.editConfig.apiKeyDescription")}
-                    label={t("details.modals.editConfig.apiKeyLabel")}
-                    placeholder={t("details.modals.editConfig.apiKeyPlaceholder")}
-                    type="password"
-                    value={configForm.apiKey}
-                    onValueChange={(value) =>
-                      setConfigForm((prev) => ({ ...prev, apiKey: value }))
-                    }
-                  />
-
-                  <Input
-                    description={t("details.modals.editConfig.hostnameDescription")}
-                    label={t("details.modals.editConfig.hostnameLabel")}
-                    placeholder={t("details.modals.editConfig.hostnamePlaceholder")}
-                    value={configForm.hostname}
-                    onValueChange={(value) =>
-                      setConfigForm((prev) => ({ ...prev, hostname: value }))
-                    }
-                  />
-                </div>
-              </ModalBody>
-              <ModalFooter>
-                <Button variant="light" onPress={onClose}>
-                  {t("details.modals.editConfig.cancel")}
-                </Button>
-                <Button color="warning" onPress={handleSubmitEditConfig}>
-                  {t("details.modals.editConfig.confirm")}
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
+        onSubmit={handleSubmitEditConfig}
+      />
 
       {/* 备份实例模态框：选择要导出的实例 */}
       <Modal
@@ -2104,6 +2038,7 @@ export default function EndpointDetailPage() {
                         <div className="max-h-80 overflow-y-auto border border-default-200 rounded-lg divide-y divide-default-200">
                           {instances.map((ins: any, idx: number) => {
                             const checked = backupSelected.has(idx);
+                            const checkboxId = `backup-instance-${idx}`;
                             const url = ins.commandLine || "";
 
                             return (
@@ -2114,9 +2049,11 @@ export default function EndpointDetailPage() {
                                     ? "bg-secondary/5"
                                     : "hover:bg-default-50"
                                 }`}
+                                htmlFor={checkboxId}
                               >
                                 <Checkbox
                                   className="mt-0.5"
+                                  id={checkboxId}
                                   isSelected={checked}
                                   onValueChange={() =>
                                     toggleBackupSelected(idx)
