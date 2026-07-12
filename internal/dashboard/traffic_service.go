@@ -88,19 +88,17 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 				1 as record_count,
 				CURRENT_TIMESTAMP,
 				CURRENT_TIMESTAMP
-			FROM service_history sh
-			INNER JOIN (
+			FROM (
 				SELECT
-					endpoint_id,
-					instance_id,
-					MAX(record_time) as max_record_time
-				FROM service_history
-				WHERE record_time >= ? AND record_time < ?
-				GROUP BY endpoint_id, instance_id
-			) latest ON sh.endpoint_id = latest.endpoint_id
-				AND sh.instance_id = latest.instance_id
-				AND sh.record_time = latest.max_record_time
-			WHERE sh.record_time >= ? AND sh.record_time < ?
+					sh.*,
+					ROW_NUMBER() OVER (
+						PARTITION BY sh.endpoint_id, sh.instance_id
+						ORDER BY sh.record_time DESC, sh.id DESC
+					) AS row_num
+				FROM service_history sh
+				WHERE sh.record_time >= ? AND sh.record_time < ?
+			) sh
+			WHERE sh.row_num = 1
 			ON CONFLICT(hour_time, endpoint_id, instance_id) DO UPDATE SET
 				tcp_rx_total = excluded.tcp_rx_total,
 				tcp_tx_total = excluded.tcp_tx_total,
@@ -112,7 +110,7 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 				udp_tx_increment = excluded.udp_tx_increment,
 				record_count = excluded.record_count,
 				updated_at = CURRENT_TIMESTAMP`,
-			hourStart, hourStart, hourEnd, hourStart, hourEnd).Error; err != nil {
+			hourStart, hourStart, hourEnd).Error; err != nil {
 			return fmt.Errorf("插入汇总数据失败: %v", err)
 		}
 

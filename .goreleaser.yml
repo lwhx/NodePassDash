@@ -144,10 +144,13 @@ release:
   replace_existing_draft: true
   # 发布说明
   header: |
-    ## NodePassDash Release Notes (v4.0.5)
+    ## NodePassDash Release Notes (v4.0.6)
     
-    ### Optimize
-    - Refactor PostgreSQL database connection logic
+    ### Fix
+    - repair hourly traffic statistics across SQLite and PostgreSQL
+
+    ### Feature
+    - endpoint page add update config menu 
 
   footer: |
 

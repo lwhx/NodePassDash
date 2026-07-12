@@ -57,6 +57,12 @@ func TestAggregateTrafficDataForHourNormalizesUTCAndKeepsInt64(t *testing.T) {
 			EndpointID: 2, InstanceID: "b", RecordTime: hourStart.Add(59 * time.Minute).UTC(),
 			DeltaTCPIn: 30, DeltaTCPOut: 1_200_000_000,
 		},
+		{
+			// Duplicate latest timestamps are possible when an SSE event is
+			// dispatched more than once. The higher ID must win deterministically.
+			EndpointID: 1, InstanceID: "a", RecordTime: hourStart.Add(59 * time.Minute).UTC(),
+			DeltaTCPIn: 25, DeltaTCPOut: 2_900_000_000,
+		},
 	}
 	if err := db.Create(&history).Error; err != nil {
 		t.Fatalf("insert service history: %v", err)
@@ -81,8 +87,8 @@ func TestAggregateTrafficDataForHourNormalizesUTCAndKeepsInt64(t *testing.T) {
 	if !summary.HourTime.Equal(hourStart.UTC()) {
 		t.Fatalf("hour time = %s, want %s", summary.HourTime, hourStart.UTC())
 	}
-	if summary.TCPTxTotal != 4_000_000_000 {
-		t.Fatalf("tcp tx total = %d, want 4000000000", summary.TCPTxTotal)
+	if summary.TCPTxTotal != 4_100_000_000 {
+		t.Fatalf("tcp tx total = %d, want 4100000000", summary.TCPTxTotal)
 	}
 	if summary.InstanceCount != 2 {
 		t.Fatalf("instance count = %d, want 2", summary.InstanceCount)
@@ -92,8 +98,8 @@ func TestAggregateTrafficDataForHourNormalizesUTCAndKeepsInt64(t *testing.T) {
 	if err := db.Where("instance_id = ?", "a").First(&instanceA).Error; err != nil {
 		t.Fatalf("load instance a summary: %v", err)
 	}
-	if instanceA.TCPTxIncrement != 300_000_000 {
-		t.Fatalf("tcp tx increment = %d, want 300000000", instanceA.TCPTxIncrement)
+	if instanceA.TCPTxIncrement != 400_000_000 {
+		t.Fatalf("tcp tx increment = %d, want 400000000", instanceA.TCPTxIncrement)
 	}
 }
 

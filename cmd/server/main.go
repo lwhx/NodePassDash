@@ -27,8 +27,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	"github.com/glebarez/sqlite"
+	"github.com/joho/godotenv"
 	"gorm.io/gorm"
 )
 
@@ -372,12 +372,7 @@ func startBackgroundServices(gormDB *gorm.DB, sseService *sse.Service, sseManage
 	// 启动SSE相关服务
 	go func() {
 		sseManager.StartDaemon()
-
-		// 初始化SSE系统
-		if err := sseManager.InitializeSystem(); err != nil {
-			log.Errorf("初始化SSE系统失败: %v", err)
-		}
-		log.Info("SSE系统已启动")
+		log.Info("SSE守护进程已启动")
 	}()
 
 	// 启动WebSocket服务
