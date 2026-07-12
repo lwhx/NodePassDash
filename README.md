@@ -81,7 +81,18 @@ This project is provided “as is”, without any express or implied warranties.
 <table>
   <tr>
     <td width="240" align="center">
-      <a href="https://vps.town"><img src="https://camo.githubusercontent.com/9ec623bd5609749c17a6d806b09d9d67d4e0b436d4893b369f7bc0d9f5158081/68747470733a2f2f6e6f6465706173732e65752f6173736574732f767073746f776e2e706e67"></a>
+      <a href="https://vps.town"><img src="https://nodepass.eu/assets/vpstown.png"></a>
+    </td>
+    <td width="240" align="center">
+      <a href="https://whmcs.as211392.com"><img src="https://nodepass.eu/assets/dreamcloud.png"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="240" align="center">
+      <a href="https://sharon.io"><img src="https://nodepass.eu/assets/sharon.png"></a>
+    </td>
+    <td width="240" align="center">
+      <a href="https://t.me/xiao_bai_xue_zhang"><img src="https://nodepass.eu/assets/xuezhang.png"></a>
     </td>
   </tr>
 </table>
@@ -89,3 +100,7 @@ This project is provided “as is”, without any express or implied warranties.
 ## Stargazers
 
 [![Star History Chart](https://api.star-history.com/svg?repos=NodePassProject/NodePassDash&type=Date)](https://star-history.com/#NodePassProject/NodePassDash&Date)
+
+---
+
+© 2026 NodePassProject. All rights reserved.
