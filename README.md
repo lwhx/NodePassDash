@@ -76,6 +76,7 @@ This project is provided “as is”, without any express or implied warranties.
 ## Support
 
 - Issues: https://github.com/NodePassProject/NodePassDash/issues
+- Telegram: https://t.me/nodepass_offcial_group
 
 ## Sponsors
 
