@@ -10,23 +10,33 @@ import (
 
 // TrafficScheduler 流量数据聚合调度器
 type TrafficScheduler struct {
-	db             *gorm.DB
-	trafficService *TrafficService
-	cleanupService *CleanupService
-	ctx            context.Context
-	cancel         context.CancelFunc
+	db                 *gorm.DB
+	trafficService     *TrafficService
+	cleanupService     *CleanupService
+	ownsCleanupService bool
+	ctx                context.Context
+	cancel             context.CancelFunc
 }
 
 // NewTrafficScheduler 创建流量调度器
-func NewTrafficScheduler(db *gorm.DB) *TrafficScheduler {
+func NewTrafficScheduler(db *gorm.DB, cleanupServices ...*CleanupService) *TrafficScheduler {
 	ctx, cancel := context.WithCancel(context.Background())
+	cleanupService := (*CleanupService)(nil)
+	if len(cleanupServices) > 0 {
+		cleanupService = cleanupServices[0]
+	}
+	ownsCleanupService := cleanupService == nil
+	if cleanupService == nil {
+		cleanupService = NewCleanupService(db, DefaultCleanupConfig())
+	}
 
 	return &TrafficScheduler{
-		db:             db,
-		trafficService: NewTrafficService(db),
-		cleanupService: NewCleanupService(db, DefaultCleanupConfig()),
-		ctx:            ctx,
-		cancel:         cancel,
+		db:                 db,
+		trafficService:     NewTrafficService(db),
+		cleanupService:     cleanupService,
+		ownsCleanupService: ownsCleanupService,
+		ctx:                ctx,
+		cancel:             cancel,
 	}
 }
 
@@ -80,7 +90,7 @@ func (s *TrafficScheduler) Start() {
 	// 启动定时任务
 	go s.runAligned()
 
-	// 启动数据清理任务（每天凌晨3点执行）
+	// 启动数据清理任务（每天凌晨3:15执行）
 	go s.runCleanupTask()
 
 	log.Println("[流量调度器] 定时任务已启动")
@@ -91,6 +101,9 @@ func (s *TrafficScheduler) Stop() {
 	log.Println("[流量调度器] 停止定时任务...")
 
 	s.cancel()
+	if s.ownsCleanupService {
+		s.cleanupService.Close()
+	}
 	log.Println("[流量调度器] 定时任务已停止")
 }
 
@@ -148,15 +161,7 @@ func (s *TrafficScheduler) executeAggregation() {
 
 // runCleanupTask 运行数据清理任务
 func (s *TrafficScheduler) runCleanupTask() {
-	// 计算下一个凌晨3点的时间
-	now := time.Now()
-	nextRun := time.Date(now.Year(), now.Month(), now.Day(), 3, 0, 0, 0, now.Location())
-	if nextRun.Before(now) {
-		nextRun = nextRun.Add(24 * time.Hour)
-	}
-
-	// 等待到第一次执行时间
-	timer := time.NewTimer(time.Until(nextRun))
+	timer := time.NewTimer(time.Until(nextCleanupRun(time.Now())))
 	defer timer.Stop()
 
 	for {
@@ -165,23 +170,30 @@ func (s *TrafficScheduler) runCleanupTask() {
 			return
 		case <-timer.C:
 			s.executeCleanup()
-			// 重置为下一个24小时后的3点
-			timer.Reset(24 * time.Hour)
+			timer.Reset(time.Until(nextCleanupRun(time.Now())))
 		}
 	}
 }
 
+func nextCleanupRun(now time.Time) time.Time {
+	nextRun := time.Date(now.Year(), now.Month(), now.Day(), 3, 15, 0, 0, now.Location())
+	if !nextRun.After(now) {
+		nextRun = nextRun.AddDate(0, 0, 1)
+	}
+	return nextRun
+}
+
 // executeCleanup 执行数据清理
 func (s *TrafficScheduler) executeCleanup() {
+	if !s.cleanupService.ConfigSnapshot().AutoCleanupEnabled {
+		log.Println("[流量调度器] 自动数据清理已禁用，跳过本次任务")
+		return
+	}
+
 	start := time.Now()
 	log.Println("[流量调度器] 开始执行数据清理任务...")
 
-	// 使用新的清理服务执行完整清理
-	results, err := s.cleanupService.ExecuteFullCleanup()
-	if err != nil {
-		log.Printf("[流量调度器] 数据清理失败: %v", err)
-		return
-	}
+	results, err := s.cleanupService.ExecuteFullCleanupContext(s.ctx)
 
 	// 统计清理结果
 	totalDeleted := int64(0)
@@ -190,6 +202,9 @@ func (s *TrafficScheduler) executeCleanup() {
 		if result.Error != nil {
 			log.Printf("[流量调度器] %s 清理出现错误: %v", result.TableName, result.Error)
 		}
+	}
+	if err != nil {
+		log.Printf("[流量调度器] 数据清理未完全成功: %v", err)
 	}
 
 	duration := time.Since(start)

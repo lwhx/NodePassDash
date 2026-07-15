@@ -49,6 +49,7 @@ NodePassDash is a modern web dashboard for managing **NodePass** endpoints, tunn
 - **Docker Guide:** [DOCKER.md](docs/en/DOCKER.md)
 - **Binary Guide:** [BINARY.md](docs/en/BINARY.md)
 - **Development Guide:** [DEVELOPMENT.md](docs/en/DEVELOPMENT.md)
+- **Offline SQLite Compaction:** [SQLITE-MAINTENANCE.md](docs/en/SQLITE-MAINTENANCE.md)
 
 ## CLI Flags
 

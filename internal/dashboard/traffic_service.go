@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"NodePassDash/internal/db"
 	"NodePassDash/internal/models"
 
 	"gorm.io/gorm"
@@ -117,59 +116,66 @@ func (s *TrafficService) AggregateTrafficDataForHour(hourStart time.Time) error 
 		// 1.1 对于该小时窗口内没有任何 service_history 记录的实例:从上一小时 carry forward,
 		// 避免"某小时缺行导致曲线断点/实例数抖动",同时 increment 在下一步自动算为 0。
 		previousHour := hourStart.Add(-1 * time.Hour)
-		if err := tx.Exec(`
-			INSERT INTO traffic_hourly_summary (
-				hour_time,
-				instance_id,
-				endpoint_id,
-				tcp_rx_total,
-				tcp_tx_total,
-				udp_rx_total,
-				udp_tx_total,
-				tcp_rx_increment,
-				tcp_tx_increment,
-				udp_rx_increment,
-				udp_tx_increment,
-				record_count,
-				created_at,
-				updated_at
-			)
-			SELECT
-				?,
-				prev.instance_id,
-				prev.endpoint_id,
-				prev.tcp_rx_total,
-				prev.tcp_tx_total,
-				prev.udp_rx_total,
-				prev.udp_tx_total,
-				0,
-				0,
-				0,
-				0,
-				0,
-				CURRENT_TIMESTAMP,
-				CURRENT_TIMESTAMP
-			FROM traffic_hourly_summary prev
-			WHERE prev.hour_time = ?
-				AND NOT EXISTS (
-					SELECT 1 FROM traffic_hourly_summary cur
-					WHERE cur.hour_time = ?
-						AND cur.endpoint_id = prev.endpoint_id
-						AND cur.instance_id = prev.instance_id
+		if tx.Migrator().HasTable("tunnels") {
+			if err := tx.Exec(`
+				INSERT INTO traffic_hourly_summary (
+					hour_time,
+					instance_id,
+					endpoint_id,
+					tcp_rx_total,
+					tcp_tx_total,
+					udp_rx_total,
+					udp_tx_total,
+					tcp_rx_increment,
+					tcp_tx_increment,
+					udp_rx_increment,
+					udp_tx_increment,
+					record_count,
+					created_at,
+					updated_at
 				)
-			ON CONFLICT(hour_time, endpoint_id, instance_id) DO UPDATE SET
-				tcp_rx_total = excluded.tcp_rx_total,
-				tcp_tx_total = excluded.tcp_tx_total,
-				udp_rx_total = excluded.udp_rx_total,
-				udp_tx_total = excluded.udp_tx_total,
-				tcp_rx_increment = excluded.tcp_rx_increment,
-				tcp_tx_increment = excluded.tcp_tx_increment,
-				udp_rx_increment = excluded.udp_rx_increment,
-				udp_tx_increment = excluded.udp_tx_increment,
-				record_count = excluded.record_count,
-				updated_at = CURRENT_TIMESTAMP
-		`, hourStart, previousHour, hourStart).Error; err != nil {
-			return fmt.Errorf("carry-forward 数据失败: %v", err)
+				SELECT
+					?,
+					prev.instance_id,
+					prev.endpoint_id,
+					prev.tcp_rx_total,
+					prev.tcp_tx_total,
+					prev.udp_rx_total,
+					prev.udp_tx_total,
+					0,
+					0,
+					0,
+					0,
+					0,
+					CURRENT_TIMESTAMP,
+					CURRENT_TIMESTAMP
+				FROM traffic_hourly_summary prev
+				WHERE prev.hour_time = ?
+					AND EXISTS (
+						SELECT 1 FROM tunnels t
+						WHERE t.endpoint_id = prev.endpoint_id
+							AND t.instance_id = prev.instance_id
+					)
+					AND NOT EXISTS (
+						SELECT 1 FROM traffic_hourly_summary cur
+						WHERE cur.hour_time = ?
+							AND cur.endpoint_id = prev.endpoint_id
+							AND cur.instance_id = prev.instance_id
+					)
+				ON CONFLICT(hour_time, endpoint_id, instance_id) DO UPDATE SET
+					tcp_rx_total = excluded.tcp_rx_total,
+					tcp_tx_total = excluded.tcp_tx_total,
+					udp_rx_total = excluded.udp_rx_total,
+					udp_tx_total = excluded.udp_tx_total,
+					tcp_rx_increment = excluded.tcp_rx_increment,
+					tcp_tx_increment = excluded.tcp_tx_increment,
+					udp_rx_increment = excluded.udp_rx_increment,
+					udp_tx_increment = excluded.udp_tx_increment,
+					record_count = excluded.record_count,
+					updated_at = CURRENT_TIMESTAMP
+			`, hourStart, previousHour, hourStart).Error; err != nil {
+				return fmt.Errorf("carry-forward 数据失败: %v", err)
+			}
 		}
 
 		// 2. 计算与上一小时的差值(increment 字段)
@@ -400,45 +406,18 @@ func (s *TrafficService) initializeTrafficDataForHour(hourStart time.Time) error
 }
 
 // CleanOldTrafficData 清理老旧的流量数据。
-// 时间比较表达式通过方言 helper 生成,SQLite 与 PG 各取其惯用语法。
+// Deprecated: use CleanupService so scheduled and manual cleanup share one implementation.
 func (s *TrafficService) CleanOldTrafficData() error {
-	d := db.Dialect()
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		// 清理30天前的原始数据
-		if err := tx.Exec(fmt.Sprintf(`
-			DELETE FROM endpoint_sse
-			WHERE %s
-			AND push_type IN ('initial', 'update')
-		`, d.TimeAgo("event_time", "-30 days"))).Error; err != nil {
-			return fmt.Errorf("清理原始流量数据失败: %v", err)
-		}
+	config, err := LoadCleanupConfig(s.db)
+	if err != nil {
+		return err
+	}
 
-		// 清理7天前的service_history数据
-		if err := tx.Exec(fmt.Sprintf(`
-			DELETE FROM service_history
-			WHERE %s
-		`, d.TimeAgo("record_time", "-7 days"))).Error; err != nil {
-			return fmt.Errorf("清理service_history数据失败: %v", err)
-		}
+	cleanupService := NewCleanupService(s.db, config)
+	defer cleanupService.Close()
 
-		// 清理1年前的汇总数据
-		if err := tx.Exec(fmt.Sprintf(`
-			DELETE FROM traffic_hourly_summary
-			WHERE %s
-		`, d.TimeAgo("hour_time", "-1 year"))).Error; err != nil {
-			return fmt.Errorf("清理汇总流量数据失败: %v", err)
-		}
-
-		// 清理1年前的dashboard汇总数据
-		if err := tx.Exec(fmt.Sprintf(`
-			DELETE FROM dashboard_traffic_summary
-			WHERE %s
-		`, d.TimeAgo("hour_time", "-1 year"))).Error; err != nil {
-			return fmt.Errorf("清理dashboard汇总数据失败: %v", err)
-		}
-
-		return nil
-	})
+	_, err = cleanupService.ExecuteFullCleanup()
+	return err
 }
 
 // GetTrafficData 获取指定时间范围的流量数据（根据隧道实例ID）

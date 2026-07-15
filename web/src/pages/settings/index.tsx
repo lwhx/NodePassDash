@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import SecuritySettings from "@/components/settings/security-settings";
 import VersionSettings from "@/components/settings/version-settings";
 import LogCleanupSettings from "@/components/settings/log-cleanup-settings";
+import HistoryCleanupSettings from "@/components/settings/history-cleanup-settings";
 
 export default function SettingsPage() {
   const { t } = useTranslation("settings");
@@ -23,7 +24,8 @@ export default function SettingsPage() {
     } catch (error) {
       addToast({
         title: t("page.toast.saveFailed"),
-        description: error instanceof Error ? error.message : t("page.toast.unknownError"),
+        description:
+          error instanceof Error ? error.message : t("page.toast.unknownError"),
         color: "danger",
       });
     }
@@ -73,7 +75,9 @@ export default function SettingsPage() {
             title={
               <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <Icon className="text-lg" icon="solar:shield-keyhole-bold" />
-                <span className="hidden sm:inline">{t("page.tabs.security")}</span>
+                <span className="sr-only sm:not-sr-only">
+                  {t("page.tabs.security")}
+                </span>
               </div>
             }
           >
@@ -106,18 +110,25 @@ export default function SettingsPage() {
             title={
               <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <Icon className="text-lg" icon="solar:database-bold" />
-                <span className="hidden sm:inline">{t("page.tabs.logs")}</span>
+                <span className="sr-only sm:not-sr-only">
+                  {t("page.tabs.logs")}
+                </span>
               </div>
             }
           >
-            <LogCleanupSettings />
+            <div className="space-y-6">
+              <LogCleanupSettings />
+              <HistoryCleanupSettings />
+            </div>
           </Tab>
           <Tab
             key="version"
             title={
               <div className="flex items-center gap-2 justify-center sm:justify-start">
                 <Icon className="text-lg" icon="solar:server-2-bold" />
-                <span className="hidden sm:inline">{t("page.tabs.version")}</span>
+                <span className="sr-only sm:not-sr-only">
+                  {t("page.tabs.version")}
+                </span>
               </div>
             }
           >

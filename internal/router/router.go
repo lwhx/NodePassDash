@@ -24,7 +24,7 @@ import (
 )
 
 // SetupRouter 创建并配置主路由器
-func SetupRouter(db *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service, version string) *gin.Engine {
+func SetupRouter(db *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service, cleanupService *dashboard.CleanupService, version string) *gin.Engine {
 	r := gin.Default()
 
 	// 全局中间件
@@ -65,13 +65,13 @@ func SetupRouter(db *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, 
 	r.Any("/docs-proxy/*path", docsProxyHandler)
 
 	// API路由
-	setupAPIRoutes(r, db, sseService, sseManager, wsService, version)
+	setupAPIRoutes(r, db, sseService, sseManager, wsService, cleanupService, version)
 
 	return r
 }
 
 // setupAPIRoutes 设置API路由
-func setupAPIRoutes(r *gin.Engine, db *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service, version string) {
+func setupAPIRoutes(r *gin.Engine, db *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service, cleanupService *dashboard.CleanupService, version string) {
 	apiGroup := r.Group("/api")
 	{
 		// 创建服务实例
@@ -102,6 +102,7 @@ func setupAPIRoutes(r *gin.Engine, db *gorm.DB, sseService *sse.Service, sseMana
 			api.SetupSSERoutes(protectedGroup, sseService, sseManager)
 			api.SetupWebSocketRoutes(protectedGroup, wsService)
 			api.SetupDashboardRoutes(protectedGroup, dashboardService)
+			api.SetupHistoryCleanupRoutes(protectedGroup, db, cleanupService)
 			api.SetupDataRoutes(protectedGroup, db, sseManager, endpointService, tunnelService)
 			api.SetupGroupRoutes(protectedGroup, groupService)
 			api.SetupServicesRoutes(protectedGroup, servicesService, tunnelService)

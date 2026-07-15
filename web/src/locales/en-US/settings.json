@@ -148,7 +148,7 @@
     "tabs": {
       "ariaLabel": "Settings Options",
       "security": "Account Security",
-      "logs": "Log Management",
+      "logs": "Storage Cleanup",
       "version": "About System"
     },
     "toast": {
@@ -462,8 +462,8 @@
   },
   "logs": {
     "stats": {
-      "title": "Log Cleanup Statistics",
-      "description": "Current log cleanup system status",
+      "title": "File Log Statistics",
+      "description": "Current file log cleanup status",
       "refresh": "Refresh Data",
       "status": "Cleanup Status",
       "enabled": "Enabled",
@@ -476,8 +476,8 @@
       "noData": "Unable to retrieve statistics"
     },
     "config": {
-      "title": "Log Cleanup Configuration",
-      "description": "Manage automatic log cleanup rules",
+      "title": "File Log Cleanup",
+      "description": "Manage automatic cleanup rules for runtime log files",
       "configureButton": "Configure Cleanup Rules",
       "configureShort": "Configure",
       "manualCleanup": "Manual Cleanup",
@@ -491,7 +491,7 @@
       "enabled": "Enabled",
       "disabled": "Disabled",
       "hint": "💡 Log Cleanup Info:",
-      "hintDesc": "The system will periodically clean up logs older than the retention period to maintain database performance. Cleanup tasks run automatically in the background, or can be triggered manually.",
+      "hintDesc": "The system periodically removes runtime log files older than the retention period to control disk usage. Cleanup tasks run automatically in the background, or can be triggered manually.",
       "noData": "Unable to retrieve configuration data"
     },
     "modal": {
@@ -532,6 +532,107 @@
       "cleanupNetworkError": "Failed to start cleanup task, please check network connection"
     },
     "loading": "Loading log cleanup settings..."
+  },
+  "historyCleanup": {
+    "title": "Database History Cleanup",
+    "description": "Manage retention for traffic details, summaries, and operation records",
+    "loading": "Loading database cleanup settings...",
+    "status": {
+      "running": "Cleanup running",
+      "error": "Last cleanup failed",
+      "enabled": "Auto cleanup enabled",
+      "disabled": "Auto cleanup disabled"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "save": "Save Policy",
+      "preview": "Preview Cleanup",
+      "cancel": "Cancel",
+      "cleanupNow": "Clean Now"
+    },
+    "overview": {
+      "title": "Database Status",
+      "driver": "Database",
+      "databaseSize": "Database Size",
+      "reusableSpace": "Reusable Space",
+      "schedule": "Daily Run Time",
+      "lastCleanup": "Last Completed",
+      "never": "Not available"
+    },
+    "compaction": {
+      "title": "Offline SQLite compaction recommended",
+      "description": "Reusable space is {{size}}, above the 256 MB notification threshold. Stop NodePassDash and back up the database before following the maintenance guide.",
+      "action": "View maintenance guide"
+    },
+    "config": {
+      "title": "Retention Policy",
+      "description": "Historical data is removed in batches to limit database write contention.",
+      "autoCleanup": "Auto Cleanup",
+      "serviceHistory": "Service History",
+      "serviceHistoryDesc": "Choose between 2 and 30 days",
+      "summary": "Instance Hourly Summary",
+      "summaryDesc": "Choose between 8 and 3650 days",
+      "dashboard": "Dashboard Hourly Summary",
+      "dashboardDesc": "Choose between 1 and 3650 days",
+      "operationLog": "Tunnel Operation Records",
+      "operationLogDesc": "Choose between 1 and 3650 days",
+      "days": "days",
+      "executionPlan": "Runs daily at {{time}}, up to {{count}} rows per batch",
+      "saveBeforePreview": "Save your changes before previewing"
+    },
+    "validation": {
+      "serviceHistory": "Enter an integer between 2 and 30",
+      "summary": "Enter an integer between 8 and 3650",
+      "dashboard": "Enter an integer between 1 and 3650",
+      "operationLog": "Enter an integer between 1 and 3650"
+    },
+    "stats": {
+      "title": "Historical Data Overview",
+      "description": "Expired counts use the currently saved retention policy",
+      "table": "Data Table",
+      "total": "Total Rows",
+      "expired": "Expired",
+      "oldest": "Oldest Record",
+      "retention": "Retention",
+      "retentionValue": "{{days}} days",
+      "noData": "No historical data statistics are available"
+    },
+    "tables": {
+      "serviceHistory": "Service History",
+      "hourlySummary": "Instance Hourly Summary",
+      "dashboardSummary": "Dashboard Hourly Summary",
+      "operationLogs": "Tunnel Operation Records",
+      "endpointEvents": "Endpoint Events"
+    },
+    "preview": {
+      "title": "Confirm Cleanup Scope",
+      "total": "Approximately {{count}} expired rows will be deleted",
+      "warning": "Deleted data cannot be recovered. The final count may vary slightly as new data is written.",
+      "noExpired": "There are no expired records to clean up"
+    },
+    "errors": {
+      "title": "Database Cleanup Error",
+      "load": "Unable to load database cleanup settings",
+      "refresh": "Unable to refresh database cleanup status",
+      "save": "Unable to save the database cleanup policy",
+      "preview": "Unable to generate a cleanup preview",
+      "trigger": "Unable to start database cleanup",
+      "busy": "A database cleanup task is already running"
+    },
+    "toast": {
+      "refreshed": "Data Refreshed",
+      "refreshedDesc": "Database status and retention policy are up to date",
+      "refreshFailed": "Refresh Failed",
+      "saved": "Retention Policy Saved",
+      "savedDesc": "The new rules will apply to the next cleanup task",
+      "saveFailed": "Save Failed",
+      "previewFailed": "Preview Failed",
+      "cleanupStarted": "Cleanup Started",
+      "cleanupStartedDesc": "Expired records are being processed in batches",
+      "cleanupCompleted": "Cleanup Completed",
+      "cleanupCompletedDesc": "Historical data statistics have been updated",
+      "cleanupFailed": "Cleanup Failed"
+    }
   },
   "version": {
     "title": "Version Update",

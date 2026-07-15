@@ -361,9 +361,8 @@ func startHTTPServer(ginRouter *gin.Engine, port, certFile, keyFile string) *htt
 }
 
 // startBackgroundServices 启动后台服务
-func startBackgroundServices(gormDB *gorm.DB, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service) *dashboard.TrafficScheduler {
+func startBackgroundServices(trafficScheduler *dashboard.TrafficScheduler, sseService *sse.Service, sseManager *sse.Manager, wsService *websocket.Service) *dashboard.TrafficScheduler {
 	// 启动流量调度器（用于优化流量数据查询性能）
-	trafficScheduler := dashboard.NewTrafficScheduler(gormDB)
 	go func() {
 		trafficScheduler.Start()
 		log.Info("流量数据优化调度器已启动")
@@ -481,12 +480,20 @@ func main() {
 
 	// 延迟启动SSE组件和流量调度器
 	var trafficScheduler *dashboard.TrafficScheduler
+	cleanupConfig, cleanupConfigErr := dashboard.LoadCleanupConfig(gormDB)
+	if cleanupConfigErr != nil {
+		log.Warnf("加载数据库历史清理配置失败，使用默认配置: %v", cleanupConfigErr)
+		cleanupConfig = dashboard.DefaultCleanupConfig()
+	}
+	cleanupService := dashboard.NewCleanupService(gormDB, cleanupConfig)
+	defer cleanupService.Close()
+	trafficScheduler = dashboard.NewTrafficScheduler(gormDB, cleanupService)
 
 	// 使用 Gin 路由器 - 标准Go项目结构
 	log.Info("使用 Gin 路由器 (标准架构)")
 	gin.SetMode(gin.ReleaseMode) // 设置为生产模式
 
-	ginRouter := router.SetupRouter(gormDB, sseService, sseManager, wsService, Version)
+	ginRouter := router.SetupRouter(gormDB, sseService, sseManager, wsService, cleanupService, Version)
 
 	// 配置静态文件服务
 	if err := setupStaticFiles(ginRouter); err != nil {
@@ -530,7 +537,7 @@ func main() {
 	time.Sleep(2 * time.Second)
 
 	// 启动后台服务
-	trafficScheduler = startBackgroundServices(gormDB, sseService, sseManager, wsService)
+	trafficScheduler = startBackgroundServices(trafficScheduler, sseService, sseManager, wsService)
 
 	// 记录未使用的变量以避免编译错误
 	_ = authService

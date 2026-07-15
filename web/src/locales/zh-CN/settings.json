@@ -148,7 +148,7 @@
     "tabs": {
       "ariaLabel": "设置选项",
       "security": "账户安全",
-      "logs": "日志管理",
+      "logs": "存储清理",
       "version": "关于系统"
     },
     "toast": {
@@ -462,8 +462,8 @@
   },
   "logs": {
     "stats": {
-      "title": "日志清理统计",
-      "description": "当前日志清理系统状态",
+      "title": "文件日志统计",
+      "description": "当前文件日志清理状态",
       "refresh": "刷新数据",
       "status": "清理状态",
       "enabled": "已启用",
@@ -476,8 +476,8 @@
       "noData": "无法获取统计数据"
     },
     "config": {
-      "title": "日志清理配置",
-      "description": "管理日志自动清理规则",
+      "title": "文件日志清理",
+      "description": "管理运行日志文件的自动清理规则",
       "configureButton": "配置清理规则",
       "configureShort": "配置",
       "manualCleanup": "手动清理",
@@ -491,7 +491,7 @@
       "enabled": "已启用",
       "disabled": "已禁用",
       "hint": "💡 日志清理说明：",
-      "hintDesc": "系统会定期清理超过保留天数的日志记录，保持数据库性能。清理任务会自动在后台执行，也可以手动触发清理。",
+      "hintDesc": "系统会定期清理超过保留天数的运行日志文件，控制日志目录的磁盘占用。清理任务会自动在后台执行，也可以手动触发清理。",
       "noData": "无法获取配置数据"
     },
     "modal": {
@@ -532,6 +532,107 @@
       "cleanupNetworkError": "启动清理任务失败，请检查网络连接"
     },
     "loading": "加载日志清理设置..."
+  },
+  "historyCleanup": {
+    "title": "数据库历史清理",
+    "description": "管理流量明细、统计汇总和操作记录的保留周期",
+    "loading": "正在读取数据库清理设置...",
+    "status": {
+      "running": "正在清理",
+      "error": "上次清理失败",
+      "enabled": "自动清理已启用",
+      "disabled": "自动清理已停用"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "save": "保存策略",
+      "preview": "预览清理",
+      "cancel": "取消",
+      "cleanupNow": "立即清理"
+    },
+    "overview": {
+      "title": "数据库状态",
+      "driver": "数据库",
+      "databaseSize": "数据库大小",
+      "reusableSpace": "可复用空间",
+      "schedule": "每日执行时间",
+      "lastCleanup": "上次完成时间",
+      "never": "暂无"
+    },
+    "compaction": {
+      "title": "建议停服压缩 SQLite 数据库",
+      "description": "当前有 {{size}} 可复用空间，已超过 256 MB 提示阈值。请先停止 NodePassDash 并备份数据库，再按照操作文档执行压缩。",
+      "action": "查看操作文档"
+    },
+    "config": {
+      "title": "保留策略",
+      "description": "各类历史数据会按批次清理，避免长时间占用数据库写入。",
+      "autoCleanup": "自动清理",
+      "serviceHistory": "服务历史明细",
+      "serviceHistoryDesc": "允许设置 2 至 30 天",
+      "summary": "实例小时汇总",
+      "summaryDesc": "允许设置 8 至 3650 天",
+      "dashboard": "全局小时汇总",
+      "dashboardDesc": "允许设置 1 至 3650 天",
+      "operationLog": "隧道操作记录",
+      "operationLogDesc": "允许设置 1 至 3650 天",
+      "days": "天",
+      "executionPlan": "每天 {{time}} 执行，每批最多 {{count}} 条",
+      "saveBeforePreview": "保存当前更改后才能预览"
+    },
+    "validation": {
+      "serviceHistory": "请输入 2 至 30 之间的整数",
+      "summary": "请输入 8 至 3650 之间的整数",
+      "dashboard": "请输入 1 至 3650 之间的整数",
+      "operationLog": "请输入 1 至 3650 之间的整数"
+    },
+    "stats": {
+      "title": "历史数据概览",
+      "description": "过期数量按当前已保存的保留策略计算",
+      "table": "数据表",
+      "total": "总记录数",
+      "expired": "已过期",
+      "oldest": "最早记录",
+      "retention": "保留周期",
+      "retentionValue": "{{days}} 天",
+      "noData": "暂无可用的历史数据统计"
+    },
+    "tables": {
+      "serviceHistory": "服务历史明细",
+      "hourlySummary": "实例小时汇总",
+      "dashboardSummary": "全局小时汇总",
+      "operationLogs": "隧道操作记录",
+      "endpointEvents": "端点事件"
+    },
+    "preview": {
+      "title": "确认清理范围",
+      "total": "预计删除 {{count}} 条过期记录",
+      "warning": "删除后无法恢复。实际删除数量可能因持续写入而略有变化。",
+      "noExpired": "当前没有需要清理的过期记录"
+    },
+    "errors": {
+      "title": "数据库清理异常",
+      "load": "无法读取数据库清理设置",
+      "refresh": "无法刷新数据库清理状态",
+      "save": "无法保存数据库清理策略",
+      "preview": "无法生成清理预览",
+      "trigger": "无法启动数据库清理",
+      "busy": "数据库清理任务正在运行"
+    },
+    "toast": {
+      "refreshed": "数据已刷新",
+      "refreshedDesc": "数据库状态和保留策略已更新",
+      "refreshFailed": "刷新失败",
+      "saved": "保留策略已保存",
+      "savedDesc": "新的清理规则将在下次任务中生效",
+      "saveFailed": "保存失败",
+      "previewFailed": "预览失败",
+      "cleanupStarted": "清理任务已启动",
+      "cleanupStartedDesc": "任务将在后台分批处理过期记录",
+      "cleanupCompleted": "清理任务已完成",
+      "cleanupCompletedDesc": "历史数据统计已更新",
+      "cleanupFailed": "清理任务失败"
+    }
   },
   "version": {
     "title": "版本更新",
